@@ -6,3 +6,8 @@ edition = "2024"
 [dependencies]
 symphonia = { version = "0.5.5", features = ["mp3", "all-formats"] }
 hound = "3.5.0"
+lapin = "3.7.2"
+tokio = {version =  "1.49.0", features = ["full"]}
+serde = "1.0.228"
+serde_json = "1.0.149"
+
