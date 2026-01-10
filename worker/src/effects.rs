@@ -1,3 +1,45 @@
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum EffectConfig {
+    Bitcrusher {
+        bits: u32,
+    },
+    Delay {
+        delay_ms: usize,
+        feedback: f32,
+        mix: f32,
+    },
+    Gain {
+        amount: f32,
+    },
+}
+
+impl EffectConfig {
+    pub fn into_effect(self, sample_rate: usize) -> Box<dyn AudioEffect> {
+        match self {
+            EffectConfig::Bitcrusher { bits } => Box::new(BitCrusher { bits }),
+            EffectConfig::Delay {
+                delay_ms,
+                feedback,
+                mix,
+            } => {
+                let delay_samples = (sample_rate as f32 * (delay_ms as f32 / 1000.0)) as usize;
+                Box::new(SimpleDelay::new(delay_samples, feedback, mix))
+            }
+            EffectConfig::Gain { amount } => Box::new(Gain { amount }),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AudioJob {
+    pub input_path: String,
+    pub output_path: String,
+    pub effects: Vec<EffectConfig>,
+}
+
 pub trait AudioEffect {
     /// Processes a slice of interleaved f32 samples.
     /// [L, R, L, R, ...]

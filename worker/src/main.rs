@@ -1,4 +1,8 @@
+use futures_lite::stream::StreamExt;
 use hound::{WavSpec, WavWriter};
+use lapin::options::BasicConsumeOptions;
+use lapin::types::FieldTable;
+use lapin::{Connection, ConnectionProperties};
 use std::{fs::File, path::Path};
 use symphonia::core::errors::Error;
 use symphonia::{
@@ -9,26 +13,63 @@ use symphonia::{
 pub mod effects;
 use effects::{AudioEffect, BitCrusher, SimpleDelay};
 
-fn main() {
-    let path = Path::new("./music.mp3");
-    let output_path = Path::new("./output.wav");
+use crate::effects::{AudioJob, EffectConfig};
 
-    let mut pipeline: Vec<Box<dyn AudioEffect>> = vec![
-        Box::new(BitCrusher { bits: 8 }), // Reduces quality to 8-bit
-        Box::new(SimpleDelay::new(22050, 0.4, 0.5)), // 0.5s delay (at 44.1kHz)
-    ];
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = std::env::var("RABBITMQ_URL").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
+
+    let conn = Connection::connect(&addr, ConnectionProperties::default())
+        .await
+        .expect("Failed to connect to RabbitMQ");
+
+    let channel = conn
+        .create_channel()
+        .await
+        .expect("Failed to open a channel");
+
+    println!(" [*] Waiting for messages. To exit press CTRL+C");
+
+    let mut consumer = channel
+        .basic_consume(
+            "audio_jobs",
+            "rust_worker",
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
 
     println!("Starting audio processing...");
 
-    if let Err(e) = decode_audio_file(path, output_path, &mut pipeline) {
-        eprintln!("Error processing audio: {}", e);
+    while let Some(delivery) = consumer.next().await {
+        let delivery = delivery.expect("error in consumer");
+        let data = std::str::from_utf8(&delivery.data)?;
+
+        let job: AudioJob = serde_json::from_str(data)?;
+        println!("Received job: {:?}", job);
+
+        let input = Path::new(&job.input_path);
+        let output = Path::new(&job.output_path);
+
+        if let Err(e) = decode_audio_file(input, output, job.effects) {
+            eprintln!("Error processing audio: {}", e);
+            delivery
+                .nack(lapin::options::BasicNackOptions::default())
+                .await?;
+        } else {
+            delivery
+                .ack(lapin::options::BasicAckOptions::default())
+                .await?;
+        }
     }
+
+    Ok(())
 }
 
 fn decode_audio_file(
     file_path: &Path,
     output_path: &Path,
-    pipeline: &mut Vec<Box<dyn AudioEffect>>,
+    effects_config: Vec<EffectConfig>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let file = Box::new(File::open(file_path)?);
     let mss = MediaSourceStream::new(file, Default::default());
@@ -60,6 +101,13 @@ fn decode_audio_file(
         sample_format: hound::SampleFormat::Float,
     };
     let mut writer = WavWriter::create(output_path, wav_spec)?;
+
+    let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
+
+    let mut pipeline: Vec<Box<dyn AudioEffect>> = effects_config
+        .into_iter()
+        .map(|c| c.into_effect(sample_rate as usize))
+        .collect();
 
     loop {
         match format.next_packet() {
