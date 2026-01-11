@@ -3,15 +3,15 @@ use hound::{WavSpec, WavWriter};
 use lapin::options::BasicConsumeOptions;
 use lapin::types::FieldTable;
 use lapin::{Connection, ConnectionProperties};
-use std::{fs::File, path::Path};
+use std::{io::Cursor, path::Path};
 use symphonia::core::errors::Error;
 use symphonia::{
-    core::{codecs::CODEC_TYPE_NULL, io::MediaSourceStream, probe::Hint},
+    core::{codecs::CODEC_TYPE_NULL, io::MediaSourceStream},
     default::get_probe,
 };
 
 pub mod effects;
-use effects::{AudioEffect, BitCrusher, SimpleDelay};
+use effects::AudioEffect;
 
 use crate::effects::{AudioJob, EffectConfig};
 
@@ -48,10 +48,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let job: AudioJob = serde_json::from_str(data)?;
         println!("Received job: {:?}", job);
 
-        let input = Path::new(&job.input_path);
+        let input = &job.input_path;
         let output = Path::new(&job.output_path);
 
-        if let Err(e) = decode_audio_file(input, output, job.effects) {
+        if let Err(e) = decode_audio_file(input, output, job.effects).await {
             eprintln!("Error processing audio: {}", e);
             delivery
                 .nack(lapin::options::BasicNackOptions::default())
@@ -66,13 +66,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn decode_audio_file(
-    file_path: &Path,
+async fn decode_audio_file(
+    file_path: &str,
     output_path: &Path,
     effects_config: Vec<EffectConfig>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let file = Box::new(File::open(file_path)?);
-    let mss = MediaSourceStream::new(file, Default::default());
+    let response = reqwest::get(file_path).await?;
+    if !response.status().is_success() {
+        return Err(format!("failed to fetch audio: {}", response.status()).into());
+    }
+
+    let bytes = response.bytes().await?;
+    let cursor = Cursor::new(bytes);
+
+    let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
 
     let probed = get_probe().format(
         &Default::default(),
