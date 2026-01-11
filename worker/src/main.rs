@@ -74,10 +74,12 @@ fn decode_audio_file(
     let file = Box::new(File::open(file_path)?);
     let mss = MediaSourceStream::new(file, Default::default());
 
-    let mut hint = Hint::new();
-    hint.with_extension("mp3");
-
-    let probed = get_probe().format(&hint, mss, &Default::default(), &Default::default())?;
+    let probed = get_probe().format(
+        &Default::default(),
+        mss,
+        &Default::default(),
+        &Default::default(),
+    )?;
     let mut format = probed.format;
 
     let track = format
