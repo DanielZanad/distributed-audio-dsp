@@ -35,6 +35,7 @@ impl EffectConfig {
 
 #[derive(Deserialize, Debug)]
 pub struct AudioJob {
+    pub job_id: String,
     pub input_path: String,
     pub output_path: String,
     pub effects: Vec<EffectConfig>,

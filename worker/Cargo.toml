@@ -12,3 +12,6 @@ serde = "1.0.228"
 serde_json = "1.0.149"
 futures-lite = "2.6.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+aws-config = { version = "1.1", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.119", features = ["behavior-version-latest"] }
+dotenv = "0.15.0"
