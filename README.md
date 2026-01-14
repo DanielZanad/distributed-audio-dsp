@@ -46,7 +46,7 @@ To run the system, you will need Docker and Docker Compose installed.
 
    ```bash
    git clone <repository-url>
-   cd event-driven-system
+   cd distributed-audio-dsp/
    ```
 
 2. **Run the services:**
