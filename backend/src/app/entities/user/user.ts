@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { Password } from './password';
 
 export interface UserProps {
     username: string;
     email: string;
-    password: string;
+    password: Password;
     avatar_url: string;
     created_at: Date;
     updated_at?: Date | null;
@@ -52,10 +53,10 @@ export class User {
     }
 
     public get password(): string {
-        return this.props.password;
+        return this.props.password.value;
     }
 
-    public set password(password: string) {
+    public set password(password: Password) {
         this.props.password = password;
         this.touch();
     }

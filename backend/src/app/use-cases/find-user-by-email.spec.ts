@@ -1,6 +1,7 @@
 import { InMemoryUserRepository } from '@test/repositories/in-memory-user-repository';
 import { User } from '../entities/user/user';
 import { FindUserByEmail } from './find-user-by-email';
+import { Password } from '@app/entities/user/password';
 
 describe('Find User By Email', () => {
     it('should be able to find a user by email', async () => {
@@ -10,7 +11,7 @@ describe('Find User By Email', () => {
         const user = new User({
             username: 'johndoe',
             email: 'john@example.com',
-            password: 'password123',
+            password: new Password('password123'),
             avatar_url: 'http://example.com/avatar.jpg',
         });
 

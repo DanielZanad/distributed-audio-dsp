@@ -1,3 +1,4 @@
+import { Password } from './password';
 import { User } from './user';
 
 describe('User Entity', () => {
@@ -5,7 +6,7 @@ describe('User Entity', () => {
         const user = new User({
             username: 'johndoe',
             email: 'john@example.com',
-            password: 'password123',
+            password: new Password('password123'),
             avatar_url: 'http://example.com/avatar.jpg',
         });
 
@@ -24,7 +25,7 @@ describe('User Entity', () => {
             {
                 username: 'janedoe',
                 email: 'jane@example.com',
-                password: 'password123',
+                password: new Password('password123'),
                 avatar_url: 'http://example.com/avatar.jpg',
                 plan: 'premium',
                 created_at: createdAt,
@@ -41,7 +42,7 @@ describe('User Entity', () => {
         const user = new User({
             username: 'johndoe',
             email: 'john@example.com',
-            password: 'password123',
+            password: new Password('password123'),
             avatar_url: 'avatar.jpg',
         });
 
@@ -55,7 +56,7 @@ describe('User Entity', () => {
         const user = new User({
             username: 'johndoe',
             email: 'john@example.com',
-            password: 'password123',
+            password: new Password('password123'),
             avatar_url: 'avatar.jpg',
         });
 
@@ -68,11 +69,11 @@ describe('User Entity', () => {
         const user = new User({
             username: 'johndoe',
             email: 'john@example.com',
-            password: 'password123',
+            password: new Password('password123'),
             avatar_url: 'avatar.jpg',
         });
 
-        user.password = 'newpassword';
+        user.password = new Password('newpassword');
         expect(user.password).toEqual('newpassword');
         expect(user.updated_at).toBeInstanceOf(Date);
     });
@@ -81,7 +82,7 @@ describe('User Entity', () => {
         const user = new User({
             username: 'johndoe',
             email: 'john@example.com',
-            password: 'password123',
+            password: new Password('password123'),
             avatar_url: 'avatar.jpg',
         });
 

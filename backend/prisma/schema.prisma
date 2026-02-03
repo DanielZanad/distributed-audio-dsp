@@ -5,8 +5,9 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -20,6 +21,7 @@ model User {
   password_hash String
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt()
+  avatar_url    String
 
   @@map("users")
 }
