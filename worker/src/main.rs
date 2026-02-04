@@ -1,6 +1,7 @@
 use dotenv::dotenv;
 use futures_lite::stream::StreamExt;
 use hound::{WavSpec, WavWriter};
+use indicatif::{ProgressBar, ProgressStyle};
 use lapin::options::BasicConsumeOptions;
 use lapin::types::FieldTable;
 use lapin::{Connection, ConnectionProperties};
@@ -21,6 +22,14 @@ use lib::effects::AudioEffect;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("Starting worker...");
+
+    let processed_dir = Path::new("processed");
+    if processed_dir.exists() {
+        println!("Cleaning up old processed files...");
+        std::fs::remove_dir_all(processed_dir)?;
+    }
+    std::fs::create_dir_all(processed_dir)?;
+
     let addr = std::env::var("RABBITMQ_URL").unwrap_or_else(|_| "amqp://127.0.0.1:5672/%2f".into());
 
     let conn = Connection::connect(&addr, ConnectionProperties::default())
@@ -114,6 +123,10 @@ async fn decode_audio_file(
     output_path: &Path,
     effects_config: Vec<EffectConfig>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let response = reqwest::get(file_path).await?;
     if !response.status().is_success() {
         return Err(format!("failed to fetch audio: {}", response.status()).into());
@@ -137,6 +150,18 @@ async fn decode_audio_file(
         .iter()
         .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
         .expect("not supported audio tracks");
+
+    let total_frames = track.codec_params.n_frames;
+    let pb = match total_frames {
+        Some(total) => {
+            let p = ProgressBar::new(total);
+            p.set_style(ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} frames ({eta})")?
+                .progress_chars("#>-"));
+            p
+        }
+        None => ProgressBar::new_spinner(),
+    };
 
     let mut decoder = symphonia::default::get_codecs()
         .make(&track.codec_params, &Default::default())
@@ -170,6 +195,7 @@ async fn decode_audio_file(
 
                 match decoder.decode(&packet) {
                     Ok(decoded) => {
+                        pb.inc(decoded.capacity() as u64);
                         let mut sample_buf = symphonia::core::audio::SampleBuffer::<f32>::new(
                             decoded.capacity() as u64,
                             *decoded.spec(),
@@ -197,6 +223,7 @@ async fn decode_audio_file(
     }
 
     writer.finalize()?;
+    pb.finish_with_message("Done!");
     println!("Processing complete: {:?}", output_path);
     Ok(())
 }
