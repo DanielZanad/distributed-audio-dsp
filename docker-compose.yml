@@ -10,6 +10,19 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
 
+  # database
+  postgres:
+    image: postgres:16-alpine
+    container_name: audio-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: audio_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   # node api 
   api:
     build:
@@ -20,10 +33,12 @@ services:
       - "3000:3000"
     environment:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      DATABASE_URL: postgres://user:password@postgres:5432/audio_db
     volumes:
       - audio_data:/app/uploads
     depends_on:
       - rabbitmq
+      - postgres
 
   # rust worker (dsp engine)
   worker:
@@ -33,10 +48,13 @@ services:
     container_name: audio-worker
     environment:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      DATABASE_URL: postgres://user:password@postgres:5432/audio_db
     volumes:
       - audio_data:/app/data
     depends_on:
       - rabbitmq
+      - postgres
 
 volumes:
   audio_data:
+  postgres_data:
