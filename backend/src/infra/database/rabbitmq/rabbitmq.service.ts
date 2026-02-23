@@ -36,6 +36,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     // New generic method to register a consumer
     async consume(queue: string, handler: (msg: any) => void) {
         await this.channelWrapper.addSetup(async (channel: ConfirmChannel) => {
+            await channel.assertQueue(queue, { durable: true });
             await channel.consume(queue, async (msg) => {
                 if (msg) {
                     const content = JSON.parse(msg.content.toString())

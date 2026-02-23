@@ -8,3 +8,12 @@ services:
         POSTGRES_USER: user
         POSTGRES_PASSWORD: password
         POSTGRES_DB: audio_db
+  jeager:
+    image: jaegertracing/all-in-one:1.57
+    container_name: audio-jeager
+    ports:
+      - "6831:6831/udp"
+      - "14268:14268"
+      - "4317:4317"
+      - "4318:4318"
+      - "16686:16686"

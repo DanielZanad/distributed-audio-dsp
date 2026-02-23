@@ -1,4 +1,4 @@
-FROM rust:1.92-slim as builder
+FROM rust:1.92-bookworm as builder
 
 WORKDIR /app
 # install build dependencies (pkg-config and ssl are often needed for lapin)
@@ -20,7 +20,7 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 # install runtime dependencies
-RUN apt-get update && apt-get install -y libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y build-essential libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 
 
 # copy the binary from the builder

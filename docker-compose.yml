@@ -27,14 +27,21 @@ services:
   api:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: audio-api
     ports:
       - "3000:3000"
+    restart: on-failure
     environment:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       DATABASE_URL: postgres://user:password@postgres:5432/audio_db
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jeager:4318
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_SERVICE_NAME: audio_orchestrator
+      OTEL_NODE_ENABLED_INSTRUMENTATIONS: http,express,pg,amqplib
     volumes:
+      - ./backend:/app
+      - /app/node_modules
       - audio_data:/app/uploads
     depends_on:
       - rabbitmq
@@ -46,14 +53,31 @@ services:
       context: ./worker
       dockerfile: Dockerfile
     container_name: audio-worker
+    restart: on-failure
     environment:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       DATABASE_URL: postgres://user:password@postgres:5432/audio_db
+      CLOUDFLARE_ENDPOINT: ${CLOUDFLARE_ENDPOINT}
+      CLOUDFLARE_ACCESS_KEY_ID: ${CLOUDFLARE_ACCESS_KEY_ID}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${CLOUDFLARE_SECRET_ACCESS_KEY}
+      TOKEN: ${TOKEN}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME}
     volumes:
       - audio_data:/app/data
     depends_on:
       - rabbitmq
       - postgres
+
+  jeager:
+    image: jaegertracing/all-in-one:1.57
+    container_name: audio-jeager
+    ports:
+      - "6831:6831/udp"
+      - "14268:14268"
+      - "4317:4317"
+      - "4318:4318"
+      - "16686:16686"
+
 
 volumes:
   audio_data:
