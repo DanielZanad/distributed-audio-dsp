@@ -71,10 +71,15 @@ pub async fn decode_audio_file(
     let mut writer = WavWriter::create(output_path, wav_spec)?;
 
     let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
+    let channels = track
+        .codec_params
+        .channels
+        .map(|c| c.count() as usize)
+        .unwrap_or(2);
 
     let mut pipeline: Vec<Box<dyn AudioEffect>> = effects_config
         .into_iter()
-        .map(|c| c.into_effect(sample_rate as usize))
+        .map(|c| c.into_effect(sample_rate as usize, channels))
         .collect();
 
     loop {
