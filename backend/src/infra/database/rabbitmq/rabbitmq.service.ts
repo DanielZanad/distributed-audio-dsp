@@ -34,15 +34,19 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
 
     // New generic method to register a consumer
-    async consume(queue: string, handler: (msg: any) => void) {
+    async consume(queue: string, handler: (msg: any) => Promise<void>) {
         await this.channelWrapper.addSetup(async (channel: ConfirmChannel) => {
             await channel.assertQueue(queue, { durable: true });
             await channel.consume(queue, async (msg) => {
                 if (msg) {
                     const content = JSON.parse(msg.content.toString())
-                    // Run the handler passed from the Repository
-                    handler(content);
-                    channel.ack(msg);
+                    try {
+                        await handler(content);
+                        channel.ack(msg);
+                    } catch (error) {
+                        this.logger.error(`Error handling RabbitMQ message from ${queue}: ${error}`);
+                        channel.nack(msg, false, true);
+                    }
                 }
             })
         });

@@ -22,6 +22,25 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt()
   avatar_url    String
+  audio_jobs    AudioJob[]
 
   @@map("users")
+}
+
+model AudioJob {
+  id                String    @id @default(uuid())
+  job_id            String    @unique
+  user_id           String
+  input_url         String
+  output_url        String?
+  output_size_bytes Int?
+  status            String
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt()
+  completed_at      DateTime?
+  user              User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([status])
+  @@map("audio_jobs")
 }
