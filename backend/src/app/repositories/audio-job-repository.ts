@@ -8,7 +8,8 @@ export type CreateAudioJobRecordDTO = {
 export type AudioStatusMessageDTO = {
     job_id: string;
     status: string;
-    output_url: string;
+    output_key?: string | null;
+    output_url?: string | null;
     output_size_bytes?: number | null;
 };
 
@@ -16,6 +17,7 @@ export type AudioJobRecord = {
     job_id: string;
     user_id: string;
     input_url: string;
+    output_key: string | null;
     output_url: string | null;
     output_size_bytes: number | null;
     status: string;

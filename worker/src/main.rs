@@ -8,7 +8,7 @@ use std::path::Path;
 mod lib;
 
 use crate::lib::audio_processor::decode_audio_file;
-use crate::lib::cloudflare::{JobStatusMessage, generate_presigned_url, get_client, upload_to_r2};
+use crate::lib::cloudflare::{JobStatusMessage, upload_to_r2};
 use crate::lib::effects::AudioJob;
 
 #[tokio::main]
@@ -70,14 +70,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .nack(lapin::options::BasicNackOptions::default())
                         .await?;
                 } else {
-                    let s3_client = get_client().await?;
-
-                    let output_url = generate_presigned_url(&s3_client, &bucket, key).await?;
+                    let output_size_bytes = std::fs::metadata(output_path)?.len();
 
                     let status_update = JobStatusMessage {
                         job_id: job.job_id,
                         status: "completed".to_string(),
-                        output_url,
+                        output_key: key.to_string(),
+                        output_size_bytes,
                     };
 
                     let payload = serde_json::to_vec(&status_update)?;

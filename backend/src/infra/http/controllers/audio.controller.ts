@@ -19,10 +19,14 @@ import {
 import { randomUUID } from "crypto";
 import { AuthGuard } from "../auth/auth.guard";
 import { AudioJobViewModel } from "../view-models/audio-job-view-model";
+import { R2SigningService } from "@infra/storage/r2-signing.service";
 
 @Controller("api/audio")
 export class AudioController {
-    constructor(private readonly audioRepository: AudioJobRepository) { }
+    constructor(
+        private readonly audioRepository: AudioJobRepository,
+        private readonly r2SigningService: R2SigningService,
+    ) { }
 
     @UseGuards(AuthGuard)
     @Post("process")
@@ -71,9 +75,22 @@ export class AudioController {
 
         const normalizedLimit = Math.min(Math.max(limit, 1), 100);
         const result = await this.audioRepository.listByUser(req.user.sub, page, normalizedLimit);
+        const items = await Promise.all(
+            result.items.map(async (item) => {
+                const outputUrl = await this.r2SigningService.resolveOutputUrl({
+                    output_key: item.output_key,
+                    output_url: item.output_url,
+                });
+
+                return AudioJobViewModel.toHTTP({
+                    ...item,
+                    output_url: outputUrl,
+                });
+            }),
+        );
 
         return {
-            items: result.items.map(AudioJobViewModel.toHTTP),
+            items,
             page,
             limit: normalizedLimit,
             total: result.total,
@@ -89,6 +106,14 @@ export class AudioController {
             throw new NotFoundException("Audio job not found");
         }
 
-        return AudioJobViewModel.toHTTP(audioJob);
+        const outputUrl = await this.r2SigningService.resolveOutputUrl({
+            output_key: audioJob.output_key,
+            output_url: audioJob.output_url,
+        });
+
+        return AudioJobViewModel.toHTTP({
+            ...audioJob,
+            output_url: outputUrl,
+        });
     }
 }

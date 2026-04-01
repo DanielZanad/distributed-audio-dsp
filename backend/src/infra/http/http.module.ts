@@ -7,10 +7,11 @@ import { RegisterUser } from '@app/use-cases/register-user';
 import { AuthController } from './controllers/auth.controller';
 import { AuthModule } from './auth/auth.module';
 import { AudioController } from './controllers/audio.controller';
+import { R2SigningService } from '@infra/storage/r2-signing.service';
 
 @Module({
   imports: [DatabaseModule, AuthModule],
   controllers: [AppController, UserController, AuthController, AudioController],
-  providers: [FindUserByEmail, RegisterUser]
+  providers: [FindUserByEmail, RegisterUser, R2SigningService]
 })
 export class HttpModule { }

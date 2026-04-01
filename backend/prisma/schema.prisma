@@ -32,6 +32,7 @@ model AudioJob {
   job_id            String    @unique
   user_id           String
   input_url         String
+  output_key        String?
   output_url        String?
   output_size_bytes Int?
   status            String

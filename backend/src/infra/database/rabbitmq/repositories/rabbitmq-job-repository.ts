@@ -63,7 +63,8 @@ export class RabbitMQJobRepository implements OnModuleInit, AudioJobRepository {
             where: { job_id: message.job_id },
             data: {
                 status: message.status,
-                output_url: message.output_url,
+                output_key: typeof message.output_key === "string" ? message.output_key : null,
+                output_url: typeof message.output_url === "string" ? message.output_url : null,
                 output_size_bytes:
                     typeof message.output_size_bytes === "number"
                         ? message.output_size_bytes
