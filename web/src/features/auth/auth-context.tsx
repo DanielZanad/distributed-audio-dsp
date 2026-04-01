@@ -1,12 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
+  useEffect,
   useCallback,
   useContext,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
+import { setUnauthorizedHandler } from '@/lib/api'
 
 const AUTH_STORAGE_KEY = 'eds.auth.token'
 
@@ -40,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.localStorage.removeItem(AUTH_STORAGE_KEY)
     setTokenState(null)
   }, [])
+
+  useEffect(() => {
+    setUnauthorizedHandler(logout)
+    return () => setUnauthorizedHandler(null)
+  }, [logout])
 
   const value = useMemo(
     () => ({

@@ -1,20 +1,12 @@
-import { useEffect } from 'react'
 import { AudioLines, LogOut, UserCircle2 } from 'lucide-react'
 import { Navigate, NavLink, Outlet } from 'react-router-dom'
 import { useProfileQuery } from '@/features/auth/api'
 import { useAuth } from '@/features/auth/auth-context'
-import { ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 
 export function AppLayout() {
   const { token, logout } = useAuth()
   const profileQuery = useProfileQuery(token)
-
-  useEffect(() => {
-    if (profileQuery.error instanceof ApiError && profileQuery.error.status === 401) {
-      logout()
-    }
-  }, [logout, profileQuery.error])
 
   if (!token) {
     return <Navigate to="/login" replace />
@@ -75,6 +67,19 @@ export function AppLayout() {
               }
             >
               Process
+            </NavLink>
+            <NavLink
+              to="/app/library"
+              className={({ isActive }) =>
+                [
+                  'rounded-lg px-3 py-2 text-sm transition',
+                  isActive
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100',
+                ].join(' ')
+              }
+            >
+              Library
             </NavLink>
             <div className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">
               <UserCircle2 size={14} />

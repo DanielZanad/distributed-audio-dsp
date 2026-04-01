@@ -1,12 +1,15 @@
 import { useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
+  ExternalLink,
   Plus,
   Send,
   Trash2,
   Waves,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,7 +21,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useProcessAudioMutation } from '@/features/audio/api'
+import { useAudioJobsQuery, useProcessAudioMutation } from '@/features/audio/api'
 import {
   createDefaultEffect,
   effectTitle,
@@ -30,17 +33,22 @@ import type {
   ProcessAudioResponse,
 } from '@/features/audio/types'
 import { useAuth } from '@/features/auth/auth-context'
-import { ApiError, getErrorMessage } from '@/lib/api'
+import { getErrorMessage } from '@/lib/api'
 
 export function ProcessPage() {
-  const { token, logout } = useAuth()
+  const { token } = useAuth()
   const processMutation = useProcessAudioMutation(token)
+  const latestJobsQuery = useAudioJobsQuery(token, 1, 10)
+  const queryClient = useQueryClient()
 
   const [inputUrl, setInputUrl] = useState('')
   const [effects, setEffects] = useState<EffectConfig[]>([createDefaultEffect('gain')])
   const [newEffectType, setNewEffectType] = useState<EffectType>('gain')
   const [formError, setFormError] = useState<string | null>(null)
   const [result, setResult] = useState<ProcessAudioResponse | null>(null)
+  const latestCompletedJob = latestJobsQuery.data?.items.find(
+    (job) => job.status === 'completed' && Boolean(job.output_url),
+  )
 
   function updateEffect(index: number, updater: (current: EffectConfig) => EffectConfig) {
     setEffects((previous) =>
@@ -107,11 +115,8 @@ export function ProcessPage() {
       {
         onSuccess: (response) => {
           setResult(response)
-        },
-        onError: (error) => {
-          if (error instanceof ApiError && error.status === 401) {
-            logout()
-          }
+          void queryClient.invalidateQueries({ queryKey: ['audio-jobs'] })
+          void latestJobsQuery.refetch()
         },
       },
     )
@@ -252,7 +257,7 @@ export function ProcessPage() {
         <CardHeader>
           <CardTitle>Dispatch Result</CardTitle>
           <CardDescription>
-            Backend currently returns dispatch confirmation only.
+            API persists audio jobs; open Library to track completion and playback.
           </CardDescription>
         </CardHeader>
 
@@ -276,11 +281,54 @@ export function ProcessPage() {
           )}
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-300">
-            <p className="font-medium text-slate-100">Status API not available yet</p>
+            <p className="font-medium text-slate-100">Check processing in Library</p>
             <p className="mt-2 text-slate-400">
-              The backend consumes completion events from RabbitMQ internally, but there is no
-              public endpoint to poll final output URL yet.
+              Completed jobs expose `output_url` and can be played directly in the library.
             </p>
+            <Link
+              className="mt-3 inline-flex text-sm text-emerald-300 transition hover:text-emerald-200"
+              to="/app/library"
+            >
+              Open Library
+            </Link>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-300">
+            <p className="font-medium text-slate-100">Latest completed result</p>
+            {latestJobsQuery.isPending ? (
+              <p className="mt-2 text-slate-400">Loading latest completed audio...</p>
+            ) : null}
+            {latestJobsQuery.isError ? (
+              <p className="mt-2 text-rose-200">Could not load latest result.</p>
+            ) : null}
+            {!latestJobsQuery.isPending &&
+            !latestJobsQuery.isError &&
+            !latestCompletedJob ? (
+              <p className="mt-2 text-slate-400">
+                No completed output yet. Dispatch a job and wait for processing.
+              </p>
+            ) : null}
+            {latestCompletedJob?.output_url ? (
+              <div className="mt-3 space-y-2">
+                <audio
+                  className="w-full"
+                  controls
+                  preload="none"
+                  src={latestCompletedJob.output_url}
+                >
+                  Your browser does not support audio playback.
+                </audio>
+                <a
+                  className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
+                  href={latestCompletedJob.output_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open latest output URL
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>

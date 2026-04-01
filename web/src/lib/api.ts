@@ -25,6 +25,12 @@ type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   token?: string
 }
 
+let unauthorizedHandler: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler
+}
+
 export async function apiRequest<T>(
   path: string,
   { body, token, headers, ...rest }: ApiRequestOptions = {},
@@ -58,6 +64,9 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && token && unauthorizedHandler) {
+      unauthorizedHandler()
+    }
     const message = resolveApiErrorMessage(payload, response.status)
     throw new ApiError(message, response.status, payload)
   }

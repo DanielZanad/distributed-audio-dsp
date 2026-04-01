@@ -52,3 +52,21 @@ export type ProcessAudioResponse = {
   job_id: string
   status: string
 }
+
+export type AudioJob = {
+  job_id: string
+  input_url: string
+  output_url: string | null
+  output_size_bytes: number | null
+  status: string
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+export type AudioJobsListResponse = {
+  items: AudioJob[]
+  page: number
+  limit: number
+  total: number
+}

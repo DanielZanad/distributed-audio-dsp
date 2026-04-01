@@ -4,6 +4,7 @@ import { useAuth } from '@/features/auth/auth-context'
 import { AppLayout } from '@/layouts/app-layout'
 import { PublicLayout } from '@/layouts/public-layout'
 import { LoginPage } from '@/pages/login-page'
+import { LibraryPage } from '@/pages/library-page'
 import { NotFoundPage } from '@/pages/not-found-page'
 import { ProcessPage } from '@/pages/process-page'
 import { RegisterPage } from '@/pages/register-page'
@@ -26,6 +27,7 @@ export function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppLayout />}>
           <Route path="process" element={<ProcessPage />} />
+          <Route path="library" element={<LibraryPage />} />
         </Route>
       </Route>
 
