@@ -1,0 +1,5 @@
+target/
+processed/
+.env
+music.mp3
+test.txt

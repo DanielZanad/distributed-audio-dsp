@@ -3,21 +3,19 @@ use aws_sdk_s3::config::{Builder, Credentials, RequestChecksumCalculation};
 use aws_sdk_s3::primitives::ByteStream;
 
 use std::path::Path;
-use serde::Serialize;
-
-#[derive(Serialize)]
-pub struct JobStatusMessage {
-    pub job_id: String,
-    pub status: String,
-    pub output_key: String,
-    pub output_size_bytes: u64,
-}
 
 pub async fn upload_to_r2(
     file_path: &Path,
     bucket_name: &str,
     object_key: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    println!(
+        "Uploading processed audio to R2: bucket={}, key={}, path={}",
+        bucket_name,
+        object_key,
+        file_path.display()
+    );
+
     let body = ByteStream::from_path(file_path)
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
@@ -32,7 +30,15 @@ pub async fn upload_to_r2(
         .content_type("audio/wav")
         .send()
         .await
-        .map_err(|e| e.into_service_error())?;
+        .map_err(|error| {
+            format!(
+                "R2 put_object failed for bucket={}, key={}, path={}: {:?}",
+                bucket_name,
+                object_key,
+                file_path.display(),
+                error
+            )
+        })?;
 
     println!("Successfully uploaded {} to R2", object_key);
     Ok(())

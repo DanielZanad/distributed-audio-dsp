@@ -41,7 +41,9 @@ export function ProcessPage() {
   const latestJobsQuery = useAudioJobsQuery(token, 1, 10)
   const queryClient = useQueryClient()
 
+  const [sourceMode, setSourceMode] = useState<'url' | 'upload'>('url')
   const [inputUrl, setInputUrl] = useState('')
+  const [inputFile, setInputFile] = useState<File | null>(null)
   const [effects, setEffects] = useState<EffectConfig[]>([createDefaultEffect('gain')])
   const [newEffectType, setNewEffectType] = useState<EffectType>('gain')
   const [formError, setFormError] = useState<string | null>(null)
@@ -80,7 +82,16 @@ export function ProcessPage() {
     setEffects((previous) => [...previous, createDefaultEffect(newEffectType)])
   }
 
-  function validateInput(url: string): string | null {
+  function validateInput(): string | null {
+    if (sourceMode === 'upload') {
+      if (!inputFile) {
+        return 'Select an audio file to upload.'
+      }
+
+      return null
+    }
+
+    const url = inputUrl
     if (url.trim().length === 0) {
       return 'Input URL is required.'
     }
@@ -101,7 +112,7 @@ export function ProcessPage() {
     event.preventDefault()
     setFormError(null)
 
-    const validationError = validateInput(inputUrl)
+    const validationError = validateInput()
     if (validationError) {
       setFormError(validationError)
       return
@@ -109,12 +120,16 @@ export function ProcessPage() {
 
     processMutation.mutate(
       {
-        input_url: inputUrl.trim(),
+        input_url: sourceMode === 'url' ? inputUrl.trim() : undefined,
+        file: sourceMode === 'upload' ? inputFile : null,
         effects,
       },
       {
         onSuccess: (response) => {
           setResult(response)
+          if (sourceMode === 'upload') {
+            setInputFile(null)
+          }
           void queryClient.invalidateQueries({ queryKey: ['audio-jobs'] })
           void latestJobsQuery.refetch()
         },
@@ -140,16 +155,56 @@ export function ProcessPage() {
 
         <CardContent>
           <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+              <Label>Input source</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant={sourceMode === 'url' ? 'primary' : 'secondary'}
+                  onClick={() => setSourceMode('url')}
+                >
+                  Remote URL
+                </Button>
+                <Button
+                  type="button"
+                  variant={sourceMode === 'upload' ? 'primary' : 'secondary'}
+                  onClick={() => setSourceMode('upload')}
+                >
+                  Upload file
+                </Button>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="audio-url">Input audio URL</Label>
-              <Input
-                id="audio-url"
-                type="url"
-                value={inputUrl}
-                onChange={(event) => setInputUrl(event.target.value)}
-                placeholder="https://example.com/sample.mp3"
-                required
-              />
+              {sourceMode === 'url' ? (
+                <>
+                  <Label htmlFor="audio-url">Input audio URL</Label>
+                  <Input
+                    id="audio-url"
+                    type="url"
+                    value={inputUrl}
+                    onChange={(event) => setInputUrl(event.target.value)}
+                    placeholder="https://example.com/sample.mp3"
+                    required
+                  />
+                </>
+              ) : (
+                <>
+                  <Label htmlFor="audio-file">Upload local audio file</Label>
+                  <Input
+                    id="audio-file"
+                    type="file"
+                    accept="audio/*,.wav,.mp3,.flac,.ogg,.m4a,.aac"
+                    onChange={(event) => setInputFile(event.target.files?.[0] ?? null)}
+                    required
+                  />
+                  <p className="text-xs text-slate-400">
+                    {inputFile
+                      ? `Selected: ${inputFile.name}`
+                      : 'Choose a local audio file to send to the backend before processing.'}
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-4">

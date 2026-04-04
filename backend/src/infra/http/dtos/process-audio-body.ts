@@ -1,11 +1,19 @@
-import { IsArray, IsNotEmpty, IsString, IsUrl } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsArray, IsOptional, IsString, IsUrl } from "class-validator";
 
 export class ProcessAudioBody {
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
     @IsUrl({ require_tld: false })
-    input_url: string;
+    input_url?: string;
 
+    @Transform(({ value }) => {
+        if (typeof value !== "string") {
+            return value;
+        }
+
+        return JSON.parse(value);
+    })
     @IsArray()
     effects: any[];
 }

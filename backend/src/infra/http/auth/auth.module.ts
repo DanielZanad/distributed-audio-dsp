@@ -5,6 +5,8 @@ import { JwtModule, JwtService } from "@nestjs/jwt";
 import { jwtConstants } from "./constants";
 import { DatabaseModule } from "@infra/database/database.module";
 import type { StringValue } from "ms";
+import { AuthGuard } from "./auth.guard";
+import { AudioOutputAuthGuard } from "./audio-output-auth.guard";
 
 @Module({
     imports: [
@@ -15,9 +17,9 @@ import type { StringValue } from "ms";
         }),
         DatabaseModule
     ],
-    providers: [{ provide: AuthService, useClass: AuthService }],
+    providers: [AuthService, AuthGuard, AudioOutputAuthGuard],
     controllers: [AuthController],
-    exports: [AuthService]
+    exports: [AuthService, AuthGuard, AudioOutputAuthGuard]
 })
 export class AuthModule {
 

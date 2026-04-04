@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ExternalLink, LibraryBig, LoaderCircle, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
@@ -139,6 +139,21 @@ export function LibraryPage() {
 
 function AudioJobCard({ job }: { job: AudioJob }) {
   const isCompleted = job.status === 'completed'
+  const [stableOutputUrl, setStableOutputUrl] = useState(job.output_url)
+
+  useEffect(() => {
+    setStableOutputUrl((current) => {
+      if (!job.output_url) {
+        return current
+      }
+
+      if (!current) {
+        return job.output_url
+      }
+
+      return current
+    })
+  }, [job.job_id, job.output_url])
 
   return (
     <Card className="border-slate-700 bg-slate-900/40">
@@ -167,14 +182,14 @@ function AudioJobCard({ job }: { job: AudioJob }) {
           </p>
         </div>
 
-        {job.output_url ? (
+        {stableOutputUrl ? (
           <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-            <audio className="w-full" controls preload="none" src={job.output_url}>
+            <audio className="w-full" controls preload="none" src={stableOutputUrl}>
               Your browser does not support audio playback.
             </audio>
             <a
               className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
-              href={job.output_url}
+              href={stableOutputUrl}
               target="_blank"
               rel="noreferrer"
             >

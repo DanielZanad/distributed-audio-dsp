@@ -18,12 +18,7 @@ pub async fn decode_audio_file(
         std::fs::create_dir_all(parent)?;
     }
 
-    let response = reqwest::get(file_path).await?;
-    if !response.status().is_success() {
-        return Err(format!("failed to fetch audio: {}", response.status()).into());
-    }
-
-    let bytes = response.bytes().await?;
+    let bytes = load_audio_source(file_path).await?;
     let cursor = Cursor::new(bytes);
 
     let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
@@ -122,4 +117,62 @@ pub async fn decode_audio_file(
     pb.finish_with_message("Done!");
     println!("Processing complete: {:?}", output_path);
     Ok(())
+}
+
+async fn load_audio_source(file_path: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    if is_remote_source(file_path) {
+        let response = reqwest::get(file_path).await?;
+        if !response.status().is_success() {
+            return Err(format!("failed to fetch audio: {}", response.status()).into());
+        }
+
+        return Ok(response.bytes().await?.to_vec());
+    }
+
+    Ok(tokio::fs::read(file_path).await?)
+}
+
+fn is_remote_source(file_path: &str) -> bool {
+    file_path.starts_with("http://") || file_path.starts_with("https://")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_remote_source, load_audio_source};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_temp_file() -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time should be monotonic")
+            .as_nanos();
+
+        std::env::temp_dir().join(format!("audio-input-{nanos}.bin"))
+    }
+
+    #[test]
+    fn detects_remote_sources() {
+        assert!(is_remote_source("https://example.com/audio.mp3"));
+        assert!(is_remote_source("http://example.com/audio.mp3"));
+        assert!(!is_remote_source("/app/data/inputs/test.wav"));
+    }
+
+    #[tokio::test]
+    async fn loads_local_audio_source() {
+        let temp_file = unique_temp_file();
+        fs::write(&temp_file, b"local-audio").expect("temp file should be written");
+
+        let bytes = load_audio_source(
+            temp_file
+                .to_str()
+                .expect("temp path should be valid UTF-8"),
+        )
+        .await
+        .expect("local source should load");
+
+        assert_eq!(bytes, b"local-audio");
+
+        let _ = fs::remove_file(temp_file);
+    }
 }

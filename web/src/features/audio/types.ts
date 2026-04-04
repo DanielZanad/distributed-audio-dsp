@@ -43,7 +43,8 @@ export type EffectConfig =
 export type EffectType = EffectConfig['type']
 
 export type ProcessAudioPayload = {
-  input_url: string
+  input_url?: string
+  file?: File | null
   effects: EffectConfig[]
 }
 

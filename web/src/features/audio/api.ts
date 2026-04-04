@@ -10,11 +10,31 @@ async function processAudio(
   token: string,
   payload: ProcessAudioPayload,
 ): Promise<ProcessAudioResponse> {
+  const body = payload.file ? buildProcessAudioFormData(payload) : {
+    input_url: payload.input_url,
+    effects: payload.effects,
+  }
+
   return apiRequest<ProcessAudioResponse>('/api/audio/process', {
     method: 'POST',
     token,
-    body: payload,
+    body,
   })
+}
+
+function buildProcessAudioFormData(payload: ProcessAudioPayload): FormData {
+  const formData = new FormData()
+
+  if (payload.input_url) {
+    formData.append('input_url', payload.input_url)
+  }
+
+  if (payload.file) {
+    formData.append('file', payload.file)
+  }
+
+  formData.append('effects', JSON.stringify(payload.effects))
+  return formData
 }
 
 async function listAudioJobs(

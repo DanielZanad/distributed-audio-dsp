@@ -33,16 +33,24 @@ services:
       - "3000:3000"
     restart: on-failure
     environment:
+      AUDIO_STORAGE_DRIVER: ${AUDIO_STORAGE_DRIVER:-r2}
+      LOCAL_AUDIO_STORAGE_ROOT: ${LOCAL_AUDIO_STORAGE_ROOT:-/app/data}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:3000}
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       DATABASE_URL: postgres://user:password@postgres:5432/audio_db
+      CLOUDFLARE_ENDPOINT: ${CLOUDFLARE_ENDPOINT}
+      CLOUDFLARE_ACCESS_KEY_ID: ${CLOUDFLARE_ACCESS_KEY_ID}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${CLOUDFLARE_SECRET_ACCESS_KEY}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME}
+      R2_PRESIGNED_URL_TTL_SECONDS: ${R2_PRESIGNED_URL_TTL_SECONDS:-900}
+      JWT_EXPIRES_IN: 1d
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jeager:4318
       OTEL_TRACES_EXPORTER: otlp
       OTEL_SERVICE_NAME: audio_orchestrator
       OTEL_NODE_ENABLED_INSTRUMENTATIONS: http,express,pg,amqplib
     volumes:
       - ./backend:/app
-      - /app/node_modules
-      - audio_data:/app/uploads
+      - audio_data:/app/data
     depends_on:
       - rabbitmq
       - postgres
@@ -55,6 +63,8 @@ services:
     container_name: audio-worker
     restart: on-failure
     environment:
+      AUDIO_STORAGE_DRIVER: ${AUDIO_STORAGE_DRIVER:-r2}
+      LOCAL_AUDIO_STORAGE_ROOT: ${LOCAL_AUDIO_STORAGE_ROOT:-/app/data}
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       DATABASE_URL: postgres://user:password@postgres:5432/audio_db
       CLOUDFLARE_ENDPOINT: ${CLOUDFLARE_ENDPOINT}
@@ -67,6 +77,23 @@ services:
     depends_on:
       - rabbitmq
       - postgres
+
+  # frontend web app
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    container_name: audio-web
+    ports:
+      - "5173:5173"
+    restart: on-failure
+    environment:
+      VITE_API_URL: http://localhost:3000
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    depends_on:
+      - api
 
   jeager:
     image: jaegertracing/all-in-one:1.57

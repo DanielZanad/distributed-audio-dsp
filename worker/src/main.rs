@@ -8,8 +8,8 @@ use std::path::Path;
 mod lib;
 
 use crate::lib::audio_processor::decode_audio_file;
-use crate::lib::cloudflare::{JobStatusMessage, upload_to_r2};
 use crate::lib::effects::AudioJob;
+use crate::lib::storage::{JobStatusMessage, persist_output};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -60,43 +60,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match decode_audio_file(input, output_path, job.effects).await {
             Ok(_) => {
                 println!("Processing succeeded");
-                let bucket =
-                    std::env::var("R2_BUCKET_NAME").unwrap_or_else(|_| "processed-audio".into());
-                let key = output_path.file_name().unwrap().to_str().unwrap();
 
-                if let Err(e) = upload_to_r2(output_path, &bucket, key).await {
-                    eprintln!("Error uploading to R2: {}", e);
-                    delivery
-                        .nack(lapin::options::BasicNackOptions::default())
-                        .await?;
-                } else {
-                    let output_size_bytes = std::fs::metadata(output_path)?.len();
+                let stored_output = match persist_output(output_path, output_path).await {
+                    Ok(result) => result,
+                    Err(e) => {
+                        eprintln!("Error persisting processed audio: {}", e);
+                        delivery
+                            .nack(lapin::options::BasicNackOptions::default())
+                            .await?;
+                        continue;
+                    }
+                };
 
-                    let status_update = JobStatusMessage {
-                        job_id: job.job_id,
-                        status: "completed".to_string(),
-                        output_key: key.to_string(),
-                        output_size_bytes,
-                    };
+                let status_update = JobStatusMessage {
+                    job_id: job.job_id,
+                    status: "completed".to_string(),
+                    output_key: stored_output.output_key,
+                    output_url: stored_output.output_url,
+                    output_size_bytes: stored_output.output_size_bytes,
+                };
 
-                    let payload = serde_json::to_vec(&status_update)?;
-                    channel
-                        .basic_publish(
-                            "",
-                            "audio_status",
-                            lapin::options::BasicPublishOptions::default(),
-                            &payload,
-                            lapin::BasicProperties::default(),
-                        )
-                        .await?;
+                let payload = serde_json::to_vec(&status_update)?;
+                channel
+                    .basic_publish(
+                        "",
+                        "audio_status",
+                        lapin::options::BasicPublishOptions::default(),
+                        &payload,
+                        lapin::BasicProperties::default(),
+                    )
+                    .await?;
 
-                    delivery
-                        .ack(lapin::options::BasicAckOptions::default())
-                        .await?;
-
-                    // delete local file after upload
-                    let _ = std::fs::remove_file(output_path);
-                }
+                delivery
+                    .ack(lapin::options::BasicAckOptions::default())
+                    .await?;
             }
             Err(e) => {
                 eprintln!("Error processing audio: {}", e);
